@@ -1,0 +1,104 @@
+# Valores por defecto de un microservicio genérico. Un microservicio real no
+# edita este archivo: trae su propio values.yaml (ej.
+# environments/<env>/<servicio>-values.yaml) que sobreescribe lo que le
+# aplique. Lo que no sobreescriba queda en estos defaults, iguales para
+# todos los microservicios que usen este chart.
+
+replicaCount: 1
+
+image:
+  repository: "" # obligatorio por microservicio, ej: docker.io/tuorg/tu-servicio
+  pullPolicy: IfNotPresent
+  tag: "" # si lo dejas vacío, usa el appVersion que declare el microservicio
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  # ejemplo de un host (lo define el microservicio, no este chart):
+  # hosts:
+  #   - host: tu-servicio.local
+  #     paths:
+  #       - path: /
+  #         pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Sin probes por defecto: cada microservicio conoce su propio endpoint de
+# salud y las activa en su values.yaml, ej:
+#   readinessProbe:
+#     httpGet: {path: /health, port: http}
+#     initialDelaySeconds: 3
+#     periodSeconds: 10
+startupProbe: {}
+readinessProbe: {}
+livenessProbe: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: false
+  allowSameNamespace: true
+  ingressCIDRs: []
+  egressAllowAll: true
+
+env: []
+envFrom: []
+
+volumes: []
+volumeMounts: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
+terminationGracePeriodSeconds: 30

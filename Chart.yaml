@@ -1,0 +1,9 @@
+apiVersion: v2
+name: microservice
+description: >-
+  Chart genérico para microservicios stateless (Deployment + Service + HPA +
+  PodDisruptionBudget + NetworkPolicy + Ingress opcional). Cada microservicio
+  real trae solo su propio values.yaml.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
