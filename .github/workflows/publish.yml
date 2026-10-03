@@ -1,0 +1,71 @@
+name: Publish chart to Artifactory
+
+# Publica este chart (templates + Chart.yaml + values.yaml, tal cual) como
+# su propia versión en el repo Artifactory del kind local
+# (argocd-kind-lab/artifactory), cada vez que cambia algo relevante en main.
+# Equivalente a correr artifactory/publish-chart.sh desde ese otro repo,
+# pero disparado automáticamente por CI.
+#
+# Necesita un runner self-hosted (label "kind-local") en la misma máquina
+# donde corre el kind cluster: GitHub-hosted no puede alcanzar
+# artifactory.artifactory.svc.cluster.local, solo algo que corra en esa
+# red local (vía kubectl port-forward, igual que los scripts del otro repo).
+on:
+  push:
+    branches: [main]
+    paths:
+      - Chart.yaml
+      - values.yaml
+      - templates/**
+
+jobs:
+  publish:
+    runs-on: [self-hosted, kind-local]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar herramientas
+        run: |
+          command -v helm
+          command -v kubectl
+
+      - name: Lint
+        run: helm lint .
+
+      - name: Empaquetar
+        run: |
+          mkdir -p dist
+          helm package . -d dist
+
+      - name: Abrir port-forward a Artifactory
+        run: |
+          kubectl --context kind-hub -n artifactory port-forward svc/artifactory 8082:8082 &
+          echo $! > pf.pid
+          sleep 5
+
+      - name: Publicar en Artifactory
+        env:
+          ARTIFACTORY_USER: ${{ secrets.ARTIFACTORY_USER }}
+          ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          PF_URL="http://localhost:8082/artifactory/example-repo-local/charts-values"
+          INCLUSTER_URL="http://artifactory.artifactory.svc.cluster.local:8082/artifactory/example-repo-local/charts-values"
+          PKG=$(basename dist/*.tgz)
+
+          curl -sf -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X PUT "$PF_URL/$PKG" -T "dist/$PKG"
+
+          curl -sf -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -o dist/index.yaml "$PF_URL/index.yaml" || true
+          if [ -s dist/index.yaml ]; then
+            helm repo index dist --url "$INCLUSTER_URL" --merge dist/index.yaml
+          else
+            helm repo index dist --url "$INCLUSTER_URL"
+          fi
+
+          curl -sf -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X PUT "$PF_URL/index.yaml" -T dist/index.yaml
+
+          echo "Publicado: $INCLUSTER_URL/$PKG"
+
+      - name: Cerrar port-forward
+        if: always()
+        run: kill "$(cat pf.pid)" 2>/dev/null || true
