@@ -5,5 +5,5 @@ description: >-
   PodDisruptionBudget + NetworkPolicy + Ingress opcional). Cada microservicio
   real trae solo su propio values.yaml.
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "1.0.0"
